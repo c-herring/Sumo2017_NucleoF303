@@ -152,13 +152,13 @@ int main(void)
 			ADC1ConvComplete = 0;
 			HAL_ADC_Start(&hadc1);
 	  }*/
-	  //HAL_ADC_Start_IT(&hadc1);
-	  //HAL_ADC_Start_IT(&hadc2);
+	  HAL_ADC_Start_IT(&hadc1);
+	  HAL_ADC_Start_IT(&hadc2);
 	  if (HAL_GetTick() - stopwatch > 499)
 	  {
 		  stopwatch = HAL_GetTick();
 		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
-		  sprintf(buffer, "38ADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t",
+		  sprintf(buffer, "39ADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t",
 				  ADC1_buffer[0], ADC1_buffer[1], ADC1_buffer[2], ADC1_buffer[3],
 				  ADC2_buffer[0], ADC2_buffer[1], ADC2_buffer[2], ADC2_buffer[3]);
 		  timerA = HAL_GetTick();
