@@ -38,6 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f3xx_hal.h"
+#include "string.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -55,10 +56,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-uint32_t ADC1_buffer[4];
-uint32_t ADC2_buffer[4];
-uint8_t ADC1ConvComplete;
-uint8_t ADC2ConvComplete;
+
+uint32_t IRSensors[8];
 
 /* USER CODE END PV */
 
@@ -116,56 +115,48 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)IRSensors, 4);
+  HAL_ADC_Start_DMA(&hadc2, (uint32_t*)IRSensors+4, 4);
 
-  //HAL_ADC_Start(&hadc1);
-  //HAL_ADC_Start(&hadc2);
-
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC1_buffer, 4);
-  HAL_ADC_Start_DMA(&hadc2, (uint32_t*)ADC2_buffer, 4);
-
+  HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start(&hadc2);
 
 
 
   uint32_t stopwatch = HAL_GetTick();
   uint8_t buffer[200];
-  sprintf(buffer, "here?\n");
-  HAL_UART_Transmit(&huart2, buffer, strlen(buffer), 0xFF);
+  uint8_t TXbuff[100];
+  uint8_t TXbuffHeader[] = {'s', 't', 'a', 'r', 't'};
+  uint8_t TXbuffFooter[] = {'e', 'n', 'd'};
+
+
   uint32_t timerA;
   uint32_t timerB;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  int attemptNo = 11;
   while (1)
   {
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-	  /*
-	  if (ADC2ConvComplete == 1)
-	  {
-			ADC2ConvComplete = 0;
-			HAL_ADC_Start(&hadc2);
-	  }
-	  if (ADC1ConvComplete == 1)
-	  {
-			ADC1ConvComplete = 0;
-			HAL_ADC_Start(&hadc1);
-	  }*/
-	  HAL_ADC_Start_IT(&hadc1);
-	  HAL_ADC_Start_IT(&hadc2);
+
+
 	  if (HAL_GetTick() - stopwatch > 499)
 	  {
+
 		  stopwatch = HAL_GetTick();
 		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
-		  sprintf(buffer, "39ADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t",
-				  ADC1_buffer[0], ADC1_buffer[1], ADC1_buffer[2], ADC1_buffer[3],
-				  ADC2_buffer[0], ADC2_buffer[1], ADC2_buffer[2], ADC2_buffer[3]);
+		  sprintf((char*)buffer, "(%d)\t\tADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t", attemptNo,
+		  		  				  IRSensors[0], IRSensors[1], IRSensors[2], IRSensors[3],
+		  						  IRSensors[4], IRSensors[5], IRSensors[6], IRSensors[7]);
 		  timerA = HAL_GetTick();
-		  HAL_UART_Transmit(&huart2, buffer, strlen(buffer), 0xFF);
+		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 		  timerB = HAL_GetTick();
-		  sprintf(buffer, "<-- That took about %lums\n\r", timerB-timerA);
-		  HAL_UART_Transmit(&huart2, buffer, strlen(buffer), 0xFF);
+		  sprintf((char*)buffer, "<-- That took about %lums\n\r", timerB-timerA);
+		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
 	  }
   }
@@ -233,8 +224,8 @@ static void MX_ADC1_Init(void)
 {
 
   ADC_MultiModeTypeDef multimode;
+  ADC_AnalogWDGConfTypeDef AnalogWDGConfig;
   ADC_ChannelConfTypeDef sConfig;
-  ADC_InjectionConfTypeDef sConfigInjected;
 
     /**Common config 
     */
@@ -265,12 +256,25 @@ static void MX_ADC1_Init(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
+    /**Configure Analog WatchDog 1 
+    */
+  AnalogWDGConfig.WatchdogNumber = ADC_ANALOGWATCHDOG_1;
+  AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REG;
+  AnalogWDGConfig.HighThreshold = 0;
+  AnalogWDGConfig.LowThreshold = 0;
+  AnalogWDGConfig.Channel = ADC_CHANNEL_1;
+  AnalogWDGConfig.ITMode = DISABLE;
+  if (HAL_ADC_AnalogWDGConfig(&hadc1, &AnalogWDGConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
     /**Configure Regular Channel 
     */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = 1;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.SamplingTime = ADC_SAMPLETIME_61CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_601CYCLES_5;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -301,46 +305,6 @@ static void MX_ADC1_Init(void)
   sConfig.Channel = ADC_CHANNEL_12;
   sConfig.Rank = 4;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure Injected Channel 
-    */
-  sConfigInjected.InjectedChannel = ADC_CHANNEL_1;
-  sConfigInjected.InjectedRank = 1;
-  sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
-  sConfigInjected.InjectedNbrOfConversion = 0;
-  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  sConfigInjected.AutoInjectedConv = DISABLE;
-  sConfigInjected.InjectedDiscontinuousConvMode = DISABLE;
-  sConfigInjected.InjectedOffset = 0;
-  sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
-  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure Injected Channel 
-    */
-  sConfigInjected.InjectedRank = 2;
-  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure Injected Channel 
-    */
-  sConfigInjected.InjectedRank = 3;
-  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure Injected Channel 
-    */
-  sConfigInjected.InjectedRank = 4;
-  if (HAL_ADCEx_InjectedConfigChannel(&hadc1, &sConfigInjected) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -379,7 +343,7 @@ static void MX_ADC2_Init(void)
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = 1;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.SamplingTime = ADC_SAMPLETIME_61CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_601CYCLES_5;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
   if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
