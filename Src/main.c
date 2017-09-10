@@ -125,10 +125,20 @@ int main(void)
 
   uint32_t stopwatch = HAL_GetTick();
   uint8_t buffer[200];
-  uint8_t TXbuff[100];
-  uint8_t TXbuffHeader[] = {'s', 't', 'a', 'r', 't'};
-  uint8_t TXbuffFooter[] = {'e', 'n', 'd'};
 
+
+  int TXBuffLen = 5+3+8*4+8;
+  int TXBufHeaderLen = 5;
+  int TXBufFooterLen = 3;
+  int TXDataLen = 4*8+8;
+  //uint8_t TXBuffData[TXDataLen];
+  uint8_t TXBuff[TXBuffLen];
+  uint8_t TXBuffHeader[] = {'s', 't', 'a', 'r', 't'};
+  uint8_t TXBuffFooter[] = {'e', 'n', 'd'};
+
+  // Copy in the head and footers
+  memcpy(TXBuff, TXBuffHeader, 5);
+  memcpy(TXBuff+5+TXDataLen, TXBuffFooter, 3);
 
   uint32_t timerA;
   uint32_t timerB;
@@ -147,13 +157,28 @@ int main(void)
 	  if (HAL_GetTick() - stopwatch > 499)
 	  {
 
+		  // Create the TX buffer
+		  for (int i = 0; i < TXDataLen; i++)
+		  {
+			  if(i%5 == 0)
+			  {
+				  TXBuff[TXBufHeaderLen+i] = '0'+i/5;
+			  }
+			  else
+			  {
+				  TXBuff[TXBufHeaderLen+i] = (uint8_t)(IRSensors[(uint8_t)(i/5)] >> 8*(i%5-1) & 0xFF);
+						  //'0'+(uint8_t)(i%5);//IRSensors[i/5];// >> 8 ;
+			  }
+		  }
+
 		  stopwatch = HAL_GetTick();
 		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
 		  sprintf((char*)buffer, "(%d)\t\tADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t", attemptNo,
 		  		  				  IRSensors[0], IRSensors[1], IRSensors[2], IRSensors[3],
 		  						  IRSensors[4], IRSensors[5], IRSensors[6], IRSensors[7]);
 		  timerA = HAL_GetTick();
-		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
+		  //HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
+		  HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
 		  timerB = HAL_GetTick();
 		  sprintf((char*)buffer, "<-- That took about %lums\n\r", timerB-timerA);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
