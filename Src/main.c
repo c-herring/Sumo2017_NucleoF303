@@ -36,12 +36,12 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+
 #include "stm32f3xx_hal.h"
-#include "string.h"
+#include "main.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "dwt_stm32_delay.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -114,9 +114,23 @@ int main(void)
   MX_TIM2_Init();
 
   /* USER CODE BEGIN 2 */
+  if(DWT_Delay_Init())
+  {
+    Error_Handler(); /* Call Error Handler */
+  }
+  // Tmep test stuff
+  GPIO_PinState pinState;
+  uint32_t LineSensorStopwatch = HAL_GetTick();
+  changePinMode(GPIO_MODE_OUTPUT_PP);
+  uint32_t LineSensorPollPeriod_ms = 500;
+  uint32_t LineSensorDelayCharge_us = 10;
+  uint32_t LineSensorDelay_us = 200;
+  // End of temp stuff
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)IRSensors, 4);
-  HAL_ADC_Start_DMA(&hadc2, (uint32_t*)IRSensors+4, 4);
+  // Create the sensorStares variable
+  SensorStates sensorStates;
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)(sensorStates.IRSensors), 4);
+  HAL_ADC_Start_DMA(&hadc2, (uint32_t*)(sensorStates.IRSensors)+4, 4);
 
   HAL_ADC_Start(&hadc1);
   HAL_ADC_Start(&hadc2);
@@ -153,8 +167,19 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
+	  /*if (HAL_GetTick() - LineSensorStopwatch > LineSensorPollPeriod_ms)
+	  {
+		  LineSensorPollPeriod_ms = HAL_GetTick();
+		  changePinMode(GPIO_MODE_OUTPUT_PP);
+		  LineSensorDelay_us_clkCycles = LineSensorDelay_us * 5 * (SystemCoreClock / 1000000) / 14;
+		  while (LineSensorDelay_us_clkCycles--);
+		  changePinMode(GPIO_MODE_INPUT);//GPIO_MODE_INPUT GPIO_MODE_OUTPUT_PP
+		  LineSensorDelay_us_clkCycles = LineSensorDelay_us * (SystemCoreClock / 1000000) / 14;
+		  while (LineSensorDelay_us_clkCycles--);
+		  pinState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
+	  }*/
 
-	  if (HAL_GetTick() - stopwatch > 499)
+	  if (HAL_GetTick() - stopwatch > 99)
 	  {
 
 		  // Create the TX buffer
@@ -166,19 +191,38 @@ int main(void)
 			  }
 			  else
 			  {
-				  TXBuff[TXBufHeaderLen+i] = (uint8_t)(IRSensors[(uint8_t)(i/5)] >> 8*(i%5-1) & 0xFF);
+				  TXBuff[TXBufHeaderLen+i] = (uint8_t)(sensorStates.IRSensors[(uint8_t)(i/5)] >> 8*(i%5-1) & 0xFF);
 						  //'0'+(uint8_t)(i%5);//IRSensors[i/5];// >> 8 ;
 			  }
 		  }
-
-		  stopwatch = HAL_GetTick();
+/*
+		  changePinMode(GPIO_MODE_OUTPUT_PP);
+		  DWT_Delay_us(LineSensorDelayCharge_us);
+		  //LineSensorDelay_us_clkCycles = LineSensorDelay_us * 5 * (SystemCoreClock / 1000000) / 14;
+		  //while (LineSensorDelay_us_clkCycles--);
+		  changePinMode(GPIO_MODE_INPUT);//GPIO_MODE_INPUT GPIO_MODE_OUTPUT_PP
 		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
-		  sprintf((char*)buffer, "(%d)\t\tADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t", attemptNo,
-		  		  				  IRSensors[0], IRSensors[1], IRSensors[2], IRSensors[3],
-		  						  IRSensors[4], IRSensors[5], IRSensors[6], IRSensors[7]);
+		  //LineSensorDelay_us_clkCycles = 1 * (SystemCoreClock / 1000000) / 14;
+		  DWT_Delay_us(LineSensorDelay_us);
+		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
+		  //while (LineSensorDelay_us_clkCycles--);
+
+		  pinState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
+*/
+		  stopwatch = HAL_GetTick();
+
+		  //sprintf((char*)buffer, "(%d)\t\tADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t", attemptNo,
+		  //		  				  IRSensors[0], IRSensors[1], IRSensors[2], IRSensors[3],
+		  //						  IRSensors[4], IRSensors[5], IRSensors[6], IRSensors[7]);
+
+		  //sprintf((char*)buffer, "5HI Guillaumemesd... delay = %lu, State = %d  ", LineSensorDelay_us, pinState);
+		  //LineSensorDelay_us_clkCycles = (10000 / 14 * (SystemCoreClock / 1000000));
+		  //LineSensorDelay_us_clkCycles = LineSensorDelay_us * (SystemCoreClock / 1000000) / 14;
 		  timerA = HAL_GetTick();
 		  //HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 		  HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
+		  //while (LineSensorDelay_us_clkCycles--);
+		  //delayUS_ASM(10000);
 		  timerB = HAL_GetTick();
 		  sprintf((char*)buffer, "<-- That took about %lums\n\r", timerB-timerA);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
@@ -505,23 +549,27 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3|GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8|GPIO_PIN_11, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PA8 PA11 */
   GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_11;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB3 PB6 PB7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_6|GPIO_PIN_7;
+  /*Configure GPIO pin : PB3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB4 PB5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+  /*Configure GPIO pins : PB4 PB5 PB6 PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -529,6 +577,32 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+ * Change the IR sensors form input to output or visa versa
+ *
+ */
+void changePinMode(uint32_t mode)
+{
+	GPIO_InitTypeDef GPIO_InitStruct;
+	/*Configure GPIO pins : PB3 PB4 PB5 PB6
+	                         PB7 */
+	GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
+	                        |GPIO_PIN_7;
+	GPIO_InitStruct.Mode = mode;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+/**
+ * Check the state of the line sensors. Populate the object
+ */
+void updateLineSensorState(uint8_t *state)
+{
+	*state =	HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINA1) & 0x01
+			|	(HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINA2) & 0x01) << 1
+			|	(HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINB1) & 0x01) << 2
+			|	(HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINB2) & 0x01) << 3;
+}
 
 /* USER CODE END 4 */
 

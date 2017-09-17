@@ -41,7 +41,7 @@
   /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
-
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
@@ -54,6 +54,43 @@
 #define SWCLK_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
+
+
+// ---- PIN PORT DEFINITIONS ---- //
+#define LINE_SENSOR_PORT 	GPIOB
+#define LINE_SENSOR_PINA1	GPIO_PIN_4
+#define LINE_SENSOR_PINA2	GPIO_PIN_5
+#define LINE_SENSOR_PINB1	GPIO_PIN_6
+#define LINE_SENSOR_PINB2	GPIO_PIN_7
+
+#define IR0_PORT			GPIOA
+#define IR0_PIN				GPIO_PIN_0
+#define IR1_PORT			GPIOA
+#define IR1_PIN				GPIO_PIN_1
+#define IR2_PORT			GPIOA
+#define IR2_PIN				GPIO_PIN_3
+#define IR3_PORT			GPIOA
+#define IR3_PIN				GPIO_PIN_4
+#define IR4_PORT			GPIOA
+#define IR4_PIN				GPIO_PIN_5
+#define IR5_PORT			GPIOA
+#define IR5_PIN				GPIO_PIN_6
+#define IR6_PORT			GPIOA
+#define IR6_PIN				GPIO_PIN_7
+#define IR7_PORT			GPIOB
+#define IR7_PIN				GPIO_PIN_1
+
+
+// ---- Global Variables ---- //
+typedef struct _SensorStates{
+	// 4 LSB represent line sensors: [0 0 0 0 B2 B1 A2 A1]
+	uint8_t LineSensors;
+	uint32_t IRSensors[8];
+} SensorStates;
+
+// ---- Function Prototypes ---- //
+void changePinMode(uint32_t mode);
+void updateLineSensorState(uint8_t *state);
 
 /* USER CODE END Private defines */
 
