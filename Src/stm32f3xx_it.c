@@ -34,14 +34,17 @@
 #include "stm32f3xx_hal.h"
 #include "stm32f3xx.h"
 #include "stm32f3xx_it.h"
+#include "main.h"
 
 /* USER CODE BEGIN 0 */
-
+extern uint8_t rxByte;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
 extern DMA_HandleTypeDef hdma_adc2;
+extern DMA_HandleTypeDef hdma_usart2_rx;
+extern UART_HandleTypeDef huart2;
 
 /******************************************************************************/
 /*            Cortex-M4 Processor Interruption and Exception Handlers         */ 
@@ -97,6 +100,34 @@ void DMA1_Channel2_IRQHandler(void)
   /* USER CODE END DMA1_Channel2_IRQn 1 */
 }
 
+/**
+* @brief This function handles DMA1 channel6 global interrupt.
+*/
+void DMA1_Channel6_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel6_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel6_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_rx);
+  /* USER CODE BEGIN DMA1_Channel6_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel6_IRQn 1 */
+}
+
+/**
+* @brief This function handles USART2 global interrupt / USART2 wake-up interrupt through EXT line 26.
+*/
+void USART2_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART2_IRQn 0 */
+
+  /* USER CODE END USART2_IRQn 0 */
+  HAL_UART_IRQHandler(&huart2);
+  /* USER CODE BEGIN USART2_IRQn 1 */
+
+  /* USER CODE END USART2_IRQn 1 */
+}
+
 /* USER CODE BEGIN 1 */
 
 /**
@@ -114,5 +145,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	}
 
 }
+
+// DMA RX callback for UART. Half complete callback is triggered every time we get a char.
+// Complete callback will never trigger as it is a circular buffer.
+void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
+{
+	if (huart->Instance == USART2)
+	{
+		__HAL_UART_FLUSH_DRREGISTER(&huart2); // Clear the buffer to prevent overrun
+		//sprintf(txbuff2, "I saw %c\n\r", rxB2);
+	}
+}
+
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

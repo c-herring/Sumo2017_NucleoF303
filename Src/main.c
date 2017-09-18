@@ -52,6 +52,7 @@ DMA_HandleTypeDef hdma_adc2;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -113,6 +114,7 @@ int main(void)
   MX_TIM2_Init();
 
   /* USER CODE BEGIN 2 */
+
   if(DWT_Delay_Init())
   {
     Error_Handler(); /* Call Error Handler */
@@ -135,6 +137,8 @@ int main(void)
   // Start the ADC
   HAL_ADC_Start(&hadc1);
   HAL_ADC_Start(&hadc2);
+
+  HAL_UART_Receive_DMA(&huart2, &rxByte, 1);
 
   // Initialise the motor strucutures
   L_motor.period = 7999;
@@ -250,7 +254,7 @@ int main(void)
 
 		  // The last thing we do is append a debug string.
 		  // As far as any driver goes, this is just jibberish invalid ahit and will be ignored.
-		  sprintf((char*)buffer, "<-- hi2 That took about %lums, PA9 = %lu\n\r", timerB-timerA, L_motor.pulseWidth);
+		  sprintf((char*)buffer, "<-- hi2 That took about %lums, rxByte = %c\n\r", timerB-timerA, rxByte);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
 	  }
@@ -554,6 +558,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel2_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
 
 }
 

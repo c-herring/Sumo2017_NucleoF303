@@ -103,9 +103,18 @@ typedef struct _Motor {
 	uint32_t channel;
 } Motor;
 
+
+typedef struct _RXCommand {
+	uint8_t ready;
+	uint32_t index;
+	uint8_t *buff;
+} RXCommand;
+
 // Create global instances of the motor structures
 Motor L_motor;
 Motor R_motor;
+
+uint8_t rxByte;
 
 // ---- Function Prototypes ---- //
 void changePinMode(uint32_t mode);
