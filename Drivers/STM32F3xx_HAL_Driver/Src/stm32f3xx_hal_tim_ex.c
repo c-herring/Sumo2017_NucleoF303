@@ -116,7 +116,7 @@
     defined(STM32F302xC) || defined(STM32F303xC) || defined(STM32F358xx) || \
     defined(STM32F303x8) || defined(STM32F334x8) || defined(STM32F328xx) || \
     defined(STM32F301x8) || defined(STM32F302x8) || defined(STM32F318xx)
-      
+
 #define BDTR_BKF_SHIFT (16U)
 #define BDTR_BK2F_SHIFT (20U)
 #endif /* STM32F302xE || STM32F303xE || STM32F398xx || */

@@ -57,6 +57,13 @@
 
 
 // ---- PIN PORT DEFINITIONS ---- //
+
+#define MOTORS_PWM_PORT 		GPIOA
+#define MOTORS_PWM_PIN_LEFT 	GPIO_PIN_9
+#define MOTORS_PWM_CHANNEL_L	TIM_CHANNEL_3
+#define MOTORS_PWM_PIN_RIGHT 	GPIO_PIN_10
+#define MOTORS_PWM_CHANNEL_R	TIM_CHANNEL_4
+
 #define LINE_SENSOR_PORT 	GPIOB
 #define LINE_SENSOR_PINA1	GPIO_PIN_4
 #define LINE_SENSOR_PINA2	GPIO_PIN_5
@@ -88,9 +95,20 @@ typedef struct _SensorStates{
 	uint32_t IRSensors[8];
 } SensorStates;
 
+typedef struct _Motor {
+	uint32_t pulseWidth;
+	uint32_t period;
+	uint32_t channel;
+} Motor;
+
+// Create global instances of the motor structures
+Motor L_motor;
+Motor R_motor;
+
 // ---- Function Prototypes ---- //
 void changePinMode(uint32_t mode);
 void updateLineSensorState(uint8_t *state);
+void setMotorPWM(void);
 
 /* USER CODE END Private defines */
 

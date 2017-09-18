@@ -36,9 +36,8 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-
-#include "stm32f3xx_hal.h"
 #include "main.h"
+#include "stm32f3xx_hal.h"
 
 /* USER CODE BEGIN Includes */
 #include "dwt_stm32_delay.h"
@@ -118,6 +117,7 @@ int main(void)
   {
     Error_Handler(); /* Call Error Handler */
   }
+
   // Tmep test stuff
   GPIO_PinState pinState;
   uint32_t LineSensorStopwatch = HAL_GetTick();
@@ -127,25 +127,43 @@ int main(void)
   uint32_t LineSensorDelay_us = 200;
   // End of temp stuff
 
-  // Create the sensorStares variable
+  // Create the sensorStares variable TODO: REMOVE TO HEADER
   SensorStates sensorStates;
+  // Start ADC writing to DMA on scan complete
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)(sensorStates.IRSensors), 4);
   HAL_ADC_Start_DMA(&hadc2, (uint32_t*)(sensorStates.IRSensors)+4, 4);
-
+  // Start the ADC
   HAL_ADC_Start(&hadc1);
   HAL_ADC_Start(&hadc2);
 
+  // Initialise the motor strucutures
+  L_motor.period = 7999;
+  L_motor.pulseWidth = 0;
+  L_motor.channel = MOTORS_PWM_CHANNEL_L;
+  R_motor.period = 7999;
+  R_motor.pulseWidth = 0;
+  R_motor.channel = MOTORS_PWM_CHANNEL_R;
+  __HAL_TIM_SetCompare(&htim2, L_motor.channel, L_motor.pulseWidth);
+  __HAL_TIM_SetCompare(&htim2, R_motor.channel, R_motor.pulseWidth);
+
+  // Start both channels of the PWM
+  setMotorPWM(); // Make sure they start with zero duty cycle
+  HAL_TIM_PWM_Start(&htim2, L_motor.channel);
+  HAL_TIM_PWM_Start(&htim2, R_motor.channel);
 
 
-  uint32_t stopwatch = HAL_GetTick();
-  uint8_t buffer[200];
 
+  // Initialise variables
+  uint32_t stopwatch = HAL_GetTick(); // Start the main loop timer
+  uint32_t timerA; // Timer A and B are debugging timers
+  uint32_t timerB;
+  uint8_t buffer[200]; // Debug buffer
 
+  // Transmit buffer
   int TXBuffLen = 5+3+8*4+8;
   int TXBufHeaderLen = 5;
   int TXBufFooterLen = 3;
   int TXDataLen = 4*8+8;
-  //uint8_t TXBuffData[TXDataLen];
   uint8_t TXBuff[TXBuffLen];
   uint8_t TXBuffHeader[] = {'s', 't', 'a', 'r', 't'};
   uint8_t TXBuffFooter[] = {'e', 'n', 'd'};
@@ -154,8 +172,8 @@ int main(void)
   memcpy(TXBuff, TXBuffHeader, 5);
   memcpy(TXBuff+5+TXDataLen, TXBuffFooter, 3);
 
-  uint32_t timerA;
-  uint32_t timerB;
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -167,22 +185,15 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
-	  /*if (HAL_GetTick() - LineSensorStopwatch > LineSensorPollPeriod_ms)
-	  {
-		  LineSensorPollPeriod_ms = HAL_GetTick();
-		  changePinMode(GPIO_MODE_OUTPUT_PP);
-		  LineSensorDelay_us_clkCycles = LineSensorDelay_us * 5 * (SystemCoreClock / 1000000) / 14;
-		  while (LineSensorDelay_us_clkCycles--);
-		  changePinMode(GPIO_MODE_INPUT);//GPIO_MODE_INPUT GPIO_MODE_OUTPUT_PP
-		  LineSensorDelay_us_clkCycles = LineSensorDelay_us * (SystemCoreClock / 1000000) / 14;
-		  while (LineSensorDelay_us_clkCycles--);
-		  pinState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
-	  }*/
-
 	  if (HAL_GetTick() - stopwatch > 99)
 	  {
+		  // Reset the stopwatch
+		  stopwatch = HAL_GetTick();
 
-		  // Create the TX buffer
+		  // Update the state of the line sensors
+		  updateLineSensorState(&(sensorStates.LineSensors));
+
+		  // Create the TX string
 		  for (int i = 0; i < TXDataLen; i++)
 		  {
 			  if(i%5 == 0)
@@ -195,7 +206,13 @@ int main(void)
 						  //'0'+(uint8_t)(i%5);//IRSensors[i/5];// >> 8 ;
 			  }
 		  }
-/*
+
+		  // TRansmit the TX string
+		  HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
+
+
+
+		  /*			-------- DEBUGGING STUFF -------
 		  changePinMode(GPIO_MODE_OUTPUT_PP);
 		  DWT_Delay_us(LineSensorDelayCharge_us);
 		  //LineSensorDelay_us_clkCycles = LineSensorDelay_us * 5 * (SystemCoreClock / 1000000) / 14;
@@ -209,7 +226,7 @@ int main(void)
 
 		  pinState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
 */
-		  stopwatch = HAL_GetTick();
+
 
 		  //sprintf((char*)buffer, "(%d)\t\tADC1- 1: %lu\t2: %lu\t4: %lu\t12: %lu\tADC2- 1: %lu\t2: %lu\t3: %lu\t4: %lu\t", attemptNo,
 		  //		  				  IRSensors[0], IRSensors[1], IRSensors[2], IRSensors[3],
@@ -218,13 +235,18 @@ int main(void)
 		  //sprintf((char*)buffer, "5HI Guillaumemesd... delay = %lu, State = %d  ", LineSensorDelay_us, pinState);
 		  //LineSensorDelay_us_clkCycles = (10000 / 14 * (SystemCoreClock / 1000000));
 		  //LineSensorDelay_us_clkCycles = LineSensorDelay_us * (SystemCoreClock / 1000000) / 14;
+
+// 			-------- END OF DEBUGGING STUFF -------
+
+
 		  timerA = HAL_GetTick();
 		  //HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
-		  HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
-		  //while (LineSensorDelay_us_clkCycles--);
-		  //delayUS_ASM(10000);
+		  //HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
 		  timerB = HAL_GetTick();
-		  sprintf((char*)buffer, "<-- That took about %lums\n\r", timerB-timerA);
+
+		  // The last thing we do is append a debug string.
+		  // As far as any driver goes, this is just jibberish invalid ahit and will be ignored.
+		  sprintf((char*)buffer, "<-- hi2 That took about %lums\n\r", timerB-timerA);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
 	  }
@@ -459,7 +481,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 0;
+  htim2.Init.Period = 7999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
@@ -602,6 +624,14 @@ void updateLineSensorState(uint8_t *state)
 			|	(HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINA2) & 0x01) << 1
 			|	(HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINB1) & 0x01) << 2
 			|	(HAL_GPIO_ReadPin(LINE_SENSOR_PORT, LINE_SENSOR_PINB2) & 0x01) << 3;
+}
+
+/**
+ * Just some abstraction to set PWM duty cycle.
+ */
+void setMotorPWM()
+{
+
 }
 
 /* USER CODE END 4 */
