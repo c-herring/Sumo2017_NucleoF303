@@ -103,23 +103,32 @@ typedef struct _Motor {
 	uint32_t channel;
 } Motor;
 
-
+#define MAX_CMD_BUFFER_LEN 50
 typedef struct _RXCommand {
 	uint8_t ready;
 	uint32_t index;
-	uint8_t *buff;
-} RXCommand;
+	uint32_t cmdLength;
+	uint8_t buff[MAX_CMD_BUFFER_LEN];
+	uint8_t rxByte;
+	uint32_t headerLength;
+	uint32_t footerLength;
+	uint8_t cmdHeader[5];
+	uint8_t cmdFooter[3];
+} RXCommandStruct;
 
 // Create global instances of the motor structures
 Motor L_motor;
 Motor R_motor;
 
-uint8_t rxByte;
+RXCommandStruct RXCommand;
+
 
 // ---- Function Prototypes ---- //
 void changePinMode(uint32_t mode);
 void updateLineSensorState(uint8_t *state);
 void setMotorPWM(void);
+void parseCommand(void);
+void resetCommandStruct(void);
 
 /* USER CODE END Private defines */
 

@@ -153,7 +153,61 @@ void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
 	if (huart->Instance == USART2)
 	{
 		__HAL_UART_FLUSH_DRREGISTER(&huart2); // Clear the buffer to prevent overrun
-		//sprintf(txbuff2, "I saw %c\n\r", rxB2);
+
+		// If we have exceeded the rx buffer length then reset it
+		if (RXCommand.index > MAX_CMD_BUFFER_LEN-1)
+		{
+			resetCommandStruct();
+		}
+		// Otherwise, update the state machine
+		else
+		{
+			RXCommand.buff[RXCommand.index++] = RXCommand.rxByte;
+
+			// If we are in header region
+			if (RXCommand.index > 0 & RXCommand.index <= RXCommand.headerLength)
+			{
+				// If it was an invalid character then reset command
+				if (RXCommand.buff[RXCommand.index-1] != RXCommand.cmdHeader[RXCommand.index-1])
+				{
+					resetCommandStruct();
+				}
+			}
+			// If this is the command byte, then check what command it is so we can adjust payload accordingly
+			else if (RXCommand.index == RXCommand.headerLength+1)
+			{
+				switch (RXCommand.rxByte)
+				{
+				case '!': // Motor command
+					RXCommand.cmdLength = 10+1;
+					break;
+				default:
+					resetCommandStruct();
+					break;
+				}
+			}
+			// If this is a command byte then do nothing ... we have already saved the byte
+			else if (RXCommand.index > RXCommand.headerLength+1 & RXCommand.index <= RXCommand.headerLength + RXCommand.cmdLength)
+			{
+
+			}
+			// If this is a footer byte
+			else if (RXCommand.index > RXCommand.headerLength + RXCommand.cmdLength)
+			{
+				// If it was an invalid character then reset command
+				if (RXCommand.buff[RXCommand.index-1] != RXCommand.cmdFooter[RXCommand.index - (RXCommand.headerLength + RXCommand.cmdLength)-1])
+				{
+					resetCommandStruct();
+				}
+			}
+		}
+		// If we have finished recieving a command, then parse it
+		if (RXCommand.index >= RXCommand.headerLength + RXCommand.footerLength + RXCommand.cmdLength)
+		{
+			parseCommand();
+		}
+
+
 	}
 }
 

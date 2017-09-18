@@ -138,7 +138,7 @@ int main(void)
   HAL_ADC_Start(&hadc1);
   HAL_ADC_Start(&hadc2);
 
-  HAL_UART_Receive_DMA(&huart2, &rxByte, 1);
+  HAL_UART_Receive_DMA(&huart2, &(RXCommand.rxByte), 1);
 
   // Initialise the motor strucutures
   L_motor.period = 7999;
@@ -169,6 +169,13 @@ int main(void)
   uint8_t TXBuff[TXBuffLen];
   uint8_t TXBuffHeader[] = {'s', 't', 'a', 'r', 't'};
   uint8_t TXBuffFooter[] = {'e', 'n', 'd'};
+
+  RXCommand.headerLength = 5;
+  RXCommand.footerLength = 3;
+  memcpy(RXCommand.cmdHeader, TXBuffHeader, 5);
+  memcpy(RXCommand.cmdFooter, TXBuffFooter, 3);
+
+
 
   // Copy in the head and footers
   memcpy(TXBuff, TXBuffHeader, 5);
@@ -241,8 +248,8 @@ int main(void)
 // 			-------- END OF DEBUGGING STUFF -------
 
 		  // DEBUGGING: Increment the pulse width
-		  L_motor.pulseWidth = 4000;
-		  R_motor.pulseWidth = 2000;
+		  //L_motor.pulseWidth = 4000;
+		  //R_motor.pulseWidth = 2000;
 		  //L_motor.pulseWidth %= 7000;
 		  //R_motor.pulseWidth %= 7000;
 		  setMotorPWM();
@@ -254,7 +261,7 @@ int main(void)
 
 		  // The last thing we do is append a debug string.
 		  // As far as any driver goes, this is just jibberish invalid ahit and will be ignored.
-		  sprintf((char*)buffer, "<-- hi2 That took about %lums, rxByte = %c\n\r", timerB-timerA, rxByte);
+		  sprintf((char*)buffer, "<-- hi2 That took about %lums, rxIndex = %lu\tL_Motor = %lu\n\r", timerB-timerA, RXCommand.index, L_motor.pulseWidth);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
 	  }
@@ -644,6 +651,33 @@ void setMotorPWM()
 {
 	TIM2->MOTORS_PWM_CCRx_L = L_motor.pulseWidth;
 	TIM2->MOTORS_PWM_CCRx_R = R_motor.pulseWidth;
+}
+
+/**
+ * Callback inside the serial character DMA.
+ * Command structure:
+ * 	Header: "start"
+ * 	First Byte is Command Type
+ * 		-! Set motor PWM
+ * 	Payload
+ * 	Footer: "end"
+ *
+ * 	Command Byte !motor PWM Payload: header!'0'<32bit>'1'<32bit>footer
+ */
+void parseCommand()
+{
+	resetCommandStruct();
+	L_motor.pulseWidth += 100;
+	L_motor.pulseWidth %= 7800;
+}
+
+/**
+ * Reset the command byte back to its default state
+ */
+void resetCommandStruct()
+{
+	RXCommand.index = 0;
+	RXCommand.cmdLength = RXCommand.headerLength + RXCommand.footerLength;
 }
 
 /* USER CODE END 4 */
