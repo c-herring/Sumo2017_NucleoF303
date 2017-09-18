@@ -143,8 +143,6 @@ int main(void)
   R_motor.period = 7999;
   R_motor.pulseWidth = 0;
   R_motor.channel = MOTORS_PWM_CHANNEL_R;
-  __HAL_TIM_SetCompare(&htim2, L_motor.channel, L_motor.pulseWidth);
-  __HAL_TIM_SetCompare(&htim2, R_motor.channel, R_motor.pulseWidth);
 
   // Start both channels of the PWM
   setMotorPWM(); // Make sure they start with zero duty cycle
@@ -631,7 +629,8 @@ void updateLineSensorState(uint8_t *state)
  */
 void setMotorPWM()
 {
-
+	TIM2->MOTORS_PWM_CCRx_L = L_motor.pulseWidth;
+	TIM2->MOTORS_PWM_CCRx_R = R_motor.pulseWidth;
 }
 
 /* USER CODE END 4 */
