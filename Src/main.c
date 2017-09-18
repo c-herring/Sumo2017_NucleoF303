@@ -236,6 +236,12 @@ int main(void)
 
 // 			-------- END OF DEBUGGING STUFF -------
 
+		  // DEBUGGING: Increment the pulse width
+		  L_motor.pulseWidth = 4000;
+		  R_motor.pulseWidth = 2000;
+		  //L_motor.pulseWidth %= 7000;
+		  //R_motor.pulseWidth %= 7000;
+		  setMotorPWM();
 
 		  timerA = HAL_GetTick();
 		  //HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
@@ -244,7 +250,7 @@ int main(void)
 
 		  // The last thing we do is append a debug string.
 		  // As far as any driver goes, this is just jibberish invalid ahit and will be ignored.
-		  sprintf((char*)buffer, "<-- hi2 That took about %lums\n\r", timerB-timerA);
+		  sprintf((char*)buffer, "<-- hi2 That took about %lums, PA9 = %lu\n\r", timerB-timerA, L_motor.pulseWidth);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
 	  }
