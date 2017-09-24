@@ -174,7 +174,7 @@ int main(void)
   RXCommand.footerLength = 3;
   memcpy(RXCommand.cmdHeader, TXBuffHeader, 5);
   memcpy(RXCommand.cmdFooter, TXBuffFooter, 3);
-
+  RXCommand.buff[5+3+11] = '\0';
 
 
   // Copy in the head and footers
@@ -261,7 +261,8 @@ int main(void)
 
 		  // The last thing we do is append a debug string.
 		  // As far as any driver goes, this is just jibberish invalid ahit and will be ignored.
-		  sprintf((char*)buffer, "<-- hi2 That took about %lums, rxIndex = %lu\tL_Motor = %lu\n\r", timerB-timerA, RXCommand.index, L_motor.pulseWidth);
+		  sprintf((char*)buffer, "<-- hi2 That took about %lums, rxIndex = %lu\tL_Motor = %#010x\t%s \n\r", timerB-timerA, RXCommand.index, L_motor.pulseWidth, RXCommand.buff);
+				  //(char)L_motor.pulseWidth&0xFF, ((char)L_motor.pulseWidth >> 8)&0xFF, ((char)L_motor.pulseWidth >> 16)&0xFF, ((char)L_motor.pulseWidth >> 24)&0xFF);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
 	  }
@@ -660,15 +661,32 @@ void setMotorPWM()
  * 	First Byte is Command Type
  * 		-! Set motor PWM
  * 	Payload
+ * 		!'L'<uint32_t>'R'<uint32_t>
  * 	Footer: "end"
  *
  * 	Command Byte !motor PWM Payload: header!'0'<32bit>'1'<32bit>footer
  */
 void parseCommand()
 {
+	// Check what command we received, parse it.
+	switch (RXCommand.buff[RXCommand.headerLength]) // Switching the command byte
+	{
+	case '!': // Set motor speed
+		L_motor.pulseWidth = 0x00000000;
+		R_motor.pulseWidth = 0x00000000;
+		for (int i=0; i<4;i++)
+		{
+			L_motor.pulseWidth |= ((uint32_t)RXCommand.buff[RXCommand.headerLength+2+i] & 0xFF) << i*8;
+			R_motor.pulseWidth |= ((uint32_t)RXCommand.buff[RXCommand.headerLength+7+i] & 0xFF) << i*8;
+		}
+		//L_motor.pulseWidth = RXCommand.buff[RXCommand.headerLength+1+1] | (RXCommand.buff[RXCommand.headerLength+1+2] & 0xFF) << 8 | (RXCommand.buff[RXCommand.headerLength+1+3] & 0xFF) << 16 | (RXCommand.buff[RXCommand.headerLength+1+4] & 0xFF) << 24;
+		break;
+	default:
+		break;
+	}
 	resetCommandStruct();
-	L_motor.pulseWidth += 100;
-	L_motor.pulseWidth %= 7800;
+	//L_motor.pulseWidth += 100;
+	//L_motor.pulseWidth %= 7800;
 }
 
 /**
