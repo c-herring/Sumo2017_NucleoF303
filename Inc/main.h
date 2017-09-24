@@ -65,6 +65,9 @@
 #define MOTORS_PWM_PIN_RIGHT 	GPIO_PIN_10
 #define MOTORS_PWM_CHANNEL_R	TIM_CHANNEL_4
 #define MOTORS_PWM_CCRx_R		CCR4
+#define MOTORS_DIR_PORT 		GPIOA
+#define MOTORS_DIR_PIN_L		GPIO_PIN_8
+#define MOTORS_DIR_PIN_R		GPIO_PIN_11
 
 #define LINE_SENSOR_PORT 	GPIOB
 #define LINE_SENSOR_PINA1	GPIO_PIN_4
@@ -98,7 +101,7 @@ typedef struct _SensorStates{
 } SensorStates;
 
 typedef struct _Motor {
-	uint32_t pulseWidth;
+	int32_t pulseWidth;
 	uint32_t period;
 	uint32_t channel;
 } Motor;

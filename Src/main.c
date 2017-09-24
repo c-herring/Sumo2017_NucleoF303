@@ -120,10 +120,10 @@ int main(void)
     Error_Handler(); /* Call Error Handler */
   }
 
-  // Tmep test stuff
+  // Temp test stuff
   GPIO_PinState pinState;
   uint32_t LineSensorStopwatch = HAL_GetTick();
-  changePinMode(GPIO_MODE_OUTPUT_PP);
+  //changePinMode(GPIO_MODE_OUTPUT_PP);
   uint32_t LineSensorPollPeriod_ms = 500;
   uint32_t LineSensorDelayCharge_us = 10;
   uint32_t LineSensorDelay_us = 200;
@@ -162,10 +162,11 @@ int main(void)
   uint8_t buffer[200]; // Debug buffer
 
   // Transmit buffer
-  int TXBuffLen = 5+3+8*4+8;
+
   int TXBufHeaderLen = 5;
   int TXBufFooterLen = 3;
-  int TXDataLen = 4*8+8;
+  int TXDataLen = 4*8+8+2;
+  int TXBuffLen = TXBufHeaderLen +  TXBufFooterLen + TXDataLen;   //5+3+8*4+8;
   uint8_t TXBuff[TXBuffLen];
   uint8_t TXBuffHeader[] = {'s', 't', 'a', 'r', 't'};
   uint8_t TXBuffFooter[] = {'e', 'n', 'd'};
@@ -174,7 +175,7 @@ int main(void)
   RXCommand.footerLength = 3;
   memcpy(RXCommand.cmdHeader, TXBuffHeader, 5);
   memcpy(RXCommand.cmdFooter, TXBuffFooter, 3);
-  RXCommand.buff[5+3+11] = '\0';
+  //RXCommand.buff[5+3+11] = '\0';
 
 
   // Copy in the head and footers
@@ -194,27 +195,34 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
-	  if (HAL_GetTick() - stopwatch > 99)
+	  if (HAL_GetTick() - stopwatch > 19)
 	  {
+
 		  // Reset the stopwatch
 		  stopwatch = HAL_GetTick();
 
 		  // Update the state of the line sensors
 		  updateLineSensorState(&(sensorStates.LineSensors));
 
-		  // Create the TX string
-		  for (int i = 0; i < TXDataLen; i++)
+		  // Create the TX string. For loop places the bytes of the uint32_t IR sensor data into the string.
+		  int i;
+		  for (i = 0; i < TXDataLen-2; i++)
 		  {
+			  // If this is a multiple of 5 then it is the sensor identifier
 			  if(i%5 == 0)
 			  {
 				  TXBuff[TXBufHeaderLen+i] = '0'+i/5;
 			  }
+			  // Otherwise it is data
 			  else
 			  {
 				  TXBuff[TXBufHeaderLen+i] = (uint8_t)(sensorStates.IRSensors[(uint8_t)(i/5)] >> 8*(i%5-1) & 0xFF);
 						  //'0'+(uint8_t)(i%5);//IRSensors[i/5];// >> 8 ;
 			  }
 		  }
+		  // Almost done, just need to send the line sensor state byte.
+		  TXBuff[TXBufHeaderLen+i++] = 'l';
+		  TXBuff[TXBufHeaderLen+i] = sensorStates.LineSensors;
 
 		  // TRansmit the TX string
 		  HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
@@ -248,20 +256,23 @@ int main(void)
 // 			-------- END OF DEBUGGING STUFF -------
 
 		  // DEBUGGING: Increment the pulse width
-		  //L_motor.pulseWidth = 4000;
-		  //R_motor.pulseWidth = 2000;
-		  //L_motor.pulseWidth %= 7000;
-		  //R_motor.pulseWidth %= 7000;
+		  //L_motor.pulseWidth += 100;
+		  //R_motor.pulseWidth += 200;
+		  //L_motor.pulseWidth %= 7999;
+		  //R_motor.pulseWidth %= 7999;
 		  setMotorPWM();
 
-		  timerA = HAL_GetTick();
+
 		  //HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 		  //HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
+		  timerA = timerB;
 		  timerB = HAL_GetTick();
+
 
 		  // The last thing we do is append a debug string.
 		  // As far as any driver goes, this is just jibberish invalid ahit and will be ignored.
-		  sprintf((char*)buffer, "<-- hi2 That took about %lums, rxIndex = %lu\tL_Motor = %#010x\t%s \n\r", timerB-timerA, RXCommand.index, L_motor.pulseWidth, RXCommand.buff);
+		  sprintf((char*)buffer, "<-- hi4 That took about %lums\tstrstate = %d\tL pwm = %ld\tR pwm = %ld \n\r", timerB-timerA, RXCommand.index, L_motor.pulseWidth, R_motor.pulseWidth);
+		  //sprintf((char*)buffer, "<-- hi2 That took about %lums, rxIndex = %lu\tL_Motor = %#010x\t%s \n\r", timerB-timerA, RXCommand.index, L_motor.pulseWidth, RXCommand.buff);
 				  //(char)L_motor.pulseWidth&0xFF, ((char)L_motor.pulseWidth >> 8)&0xFF, ((char)L_motor.pulseWidth >> 16)&0xFF, ((char)L_motor.pulseWidth >> 24)&0xFF);
 		  HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
 
@@ -278,16 +289,13 @@ void SystemClock_Config(void)
 
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL4;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -303,13 +311,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC12;
-  PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -331,13 +332,12 @@ static void MX_ADC1_Init(void)
 {
 
   ADC_MultiModeTypeDef multimode;
-  ADC_AnalogWDGConfTypeDef AnalogWDGConfig;
   ADC_ChannelConfTypeDef sConfig;
 
     /**Common config 
     */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
@@ -359,19 +359,6 @@ static void MX_ADC1_Init(void)
     */
   multimode.Mode = ADC_MODE_INDEPENDENT;
   if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure Analog WatchDog 1 
-    */
-  AnalogWDGConfig.WatchdogNumber = ADC_ANALOGWATCHDOG_1;
-  AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REG;
-  AnalogWDGConfig.HighThreshold = 0;
-  AnalogWDGConfig.LowThreshold = 0;
-  AnalogWDGConfig.Channel = ADC_CHANNEL_1;
-  AnalogWDGConfig.ITMode = DISABLE;
-  if (HAL_ADC_AnalogWDGConfig(&hadc1, &AnalogWDGConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -427,7 +414,7 @@ static void MX_ADC2_Init(void)
     /**Common config 
     */
   hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
   hadc2.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc2.Init.ContinuousConvMode = DISABLE;
@@ -650,8 +637,15 @@ void updateLineSensorState(uint8_t *state)
  */
 void setMotorPWM()
 {
-	TIM2->MOTORS_PWM_CCRx_L = L_motor.pulseWidth;
-	TIM2->MOTORS_PWM_CCRx_R = R_motor.pulseWidth;
+	//uint32_t L_dir = (L_motor.pulseWidth < 0) ? -1 : 1;
+	//uint32_t R_dir = (R_motor.pulseWidth < 0) ? -1 : 1;
+
+	HAL_GPIO_WritePin(MOTORS_DIR_PORT, MOTORS_DIR_PIN_L, (L_motor.pulseWidth < 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MOTORS_DIR_PORT, MOTORS_DIR_PIN_R, (R_motor.pulseWidth < 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+
+
+	TIM2->MOTORS_PWM_CCRx_L = (uint32_t)(abs(L_motor.pulseWidth));
+	TIM2->MOTORS_PWM_CCRx_R = (uint32_t)(abs(R_motor.pulseWidth));
 }
 
 /**
@@ -676,8 +670,8 @@ void parseCommand()
 		R_motor.pulseWidth = 0x00000000;
 		for (int i=0; i<4;i++)
 		{
-			L_motor.pulseWidth |= ((uint32_t)RXCommand.buff[RXCommand.headerLength+2+i] & 0xFF) << i*8;
-			R_motor.pulseWidth |= ((uint32_t)RXCommand.buff[RXCommand.headerLength+7+i] & 0xFF) << i*8;
+			L_motor.pulseWidth |= ((int32_t)RXCommand.buff[RXCommand.headerLength+2+i] & 0xFF) << i*8;
+			R_motor.pulseWidth |= ((int32_t)RXCommand.buff[RXCommand.headerLength+7+i] & 0xFF) << i*8;
 		}
 		//L_motor.pulseWidth = RXCommand.buff[RXCommand.headerLength+1+1] | (RXCommand.buff[RXCommand.headerLength+1+2] & 0xFF) << 8 | (RXCommand.buff[RXCommand.headerLength+1+3] & 0xFF) << 16 | (RXCommand.buff[RXCommand.headerLength+1+4] & 0xFF) << 24;
 		break;
