@@ -176,6 +176,7 @@ int main(void)
   memcpy(RXCommand.cmdHeader, TXBuffHeader, 5);
   memcpy(RXCommand.cmdFooter, TXBuffFooter, 3);
   //RXCommand.buff[5+3+11] = '\0';
+  RXCommand.RXMotorsWatchdog = HAL_GetTick();
 
 
   // Copy in the head and footers
@@ -197,9 +198,18 @@ int main(void)
 
 	  if (HAL_GetTick() - stopwatch > 19)
 	  {
-
 		  // Reset the stopwatch
 		  stopwatch = HAL_GetTick();
+
+		  // Check the watchdog timer. If it has expired then turn motors off.
+		  if (HAL_GetTick() - RXCommand.RXMotorsWatchdog > MOTOR_WATCHDOG_MS)
+		  {
+			  L_motor.pulseWidth = 0;
+			  R_motor.pulseWidth = 0;
+		  }
+
+		  // Update motor pwm
+		  setMotorPWM();
 
 		  // Update the state of the line sensors
 		  updateLineSensorState(&(sensorStates.LineSensors));
@@ -260,7 +270,7 @@ int main(void)
 		  //R_motor.pulseWidth += 200;
 		  //L_motor.pulseWidth %= 7999;
 		  //R_motor.pulseWidth %= 7999;
-		  setMotorPWM();
+
 
 
 		  //HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), 0xFF);
@@ -666,6 +676,7 @@ void parseCommand()
 	switch (RXCommand.buff[RXCommand.headerLength]) // Switching the command byte
 	{
 	case '!': // Set motor speed
+		RXCommand.RXMotorsWatchdog = HAL_GetTick();
 		L_motor.pulseWidth = 0x00000000;
 		R_motor.pulseWidth = 0x00000000;
 		for (int i=0; i<4;i++)

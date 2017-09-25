@@ -117,7 +117,9 @@ typedef struct _RXCommand {
 	uint32_t footerLength;
 	uint8_t cmdHeader[5];
 	uint8_t cmdFooter[3];
+	uint32_t RXMotorsWatchdog;
 } RXCommandStruct;
+#define MOTOR_WATCHDOG_MS 200
 
 // Create global instances of the motor structures
 Motor L_motor;
