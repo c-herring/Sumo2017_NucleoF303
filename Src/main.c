@@ -165,7 +165,7 @@ int main(void)
 
   int TXBufHeaderLen = 5;
   int TXBufFooterLen = 3;
-  int TXDataLen = 4*8+8+2;
+  int TXDataLen = 4*8+8; //4*8+8+2;
   int TXBuffLen = TXBufHeaderLen +  TXBufFooterLen + TXDataLen;   //5+3+8*4+8;
   uint8_t TXBuff[TXBuffLen];
   uint8_t TXBuffHeader[] = {'s', 't', 'a', 'r', 't'};
@@ -198,6 +198,9 @@ int main(void)
 
 	  if (HAL_GetTick() - stopwatch > 19)
 	  {
+		  // Toggle the indicator
+		  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
+
 		  // Reset the stopwatch
 		  stopwatch = HAL_GetTick();
 
@@ -212,11 +215,11 @@ int main(void)
 		  setMotorPWM();
 
 		  // Update the state of the line sensors
-		  updateLineSensorState(&(sensorStates.LineSensors));
+		  //updateLineSensorState(&(sensorStates.LineSensors));
 
 		  // Create the TX string. For loop places the bytes of the uint32_t IR sensor data into the string.
 		  int i;
-		  for (i = 0; i < TXDataLen-2; i++)
+		  for (i = 0; i < TXDataLen; i++)
 		  {
 			  // If this is a multiple of 5 then it is the sensor identifier
 			  if(i%5 == 0)
@@ -231,8 +234,8 @@ int main(void)
 			  }
 		  }
 		  // Almost done, just need to send the line sensor state byte.
-		  TXBuff[TXBufHeaderLen+i++] = 'l';
-		  TXBuff[TXBufHeaderLen+i] = sensorStates.LineSensors;
+		  //TXBuff[TXBufHeaderLen+i++] = 'l';
+		  //TXBuff[TXBufHeaderLen+i] = sensorStates.LineSensors;
 
 		  // TRansmit the TX string
 		  HAL_UART_Transmit(&huart2, TXBuff, TXBuffLen, 0xFF);
